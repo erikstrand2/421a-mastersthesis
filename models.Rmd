@@ -1,0 +1,456 @@
+```{r}
+library(tidyverse)
+library(sf)
+```
+
+```{r}
+master <- 
+    read_sf("../data_clean/master_database.shp") %>% 
+    st_drop_geometry() %>% 
+    mutate(
+        time = ifelse(period == "Pre", 0, 1), 
+        treatment = ifelse(gea == 0, 0, 1), 
+        time_c = year - 2009,
+        did = time * treatment
+    )
+
+outputs_did <- 
+    c(
+        "gini", 
+        "ratio_8020", 
+        "chng_score",
+        "entropy",
+        "rntafflcl", 
+        "rntaffcty", 
+        "newcomers", 
+        "new_const"
+        # "cnstprop", 
+        # "demoprop", 
+        # "newhhprop"
+    )
+
+outputs_polr <- 
+    c(
+        "gini_fact", 
+        "ratio_8020_fact", 
+        "chng_score_fact",
+        "entropy_fact",
+        "rntafflcl_fact", 
+        "rntaffcty_fact", 
+        "newcomers_fact", 
+        "new_const_fact"
+        # "cnstprop_fact", 
+        # "demoprop_fact", 
+        # "newhhprop_fact"
+    )
+
+inputs_did <- 
+    c(
+        "did", "time", "gea", "college", "latinx_pop",  "local", "migrant", 
+        "not_rb", "med_hh_inc", "pop_18.34", "pop_35.64", "pop_65plus", 
+        "pop_u18", "rb_mod", "rb_sev", "u_pov", "u_pov150", "white_pop", 
+        "black_pop", "api_pop", "other_pop"
+    )
+
+inputs_polr <- 
+    c(
+        "gea", "college", "latinx_pop",  "local", "migrant", 
+        "not_rb", "med_hh_inc", "pop_18.34", "pop_35.64", "pop_65plus", 
+        "pop_u18", "rb_mod", "rb_sev", "u_pov", "u_pov150", "white_pop", 
+        "black_pop", "api_pop", "other_pop"
+    )
+```
+
+```{r}
+
+```
+
+```{r}
+master_did <- 
+    master
+
+master <- 
+    master %>% 
+    mutate_at(vars(gini, ratio_8020, chng_score, newcomers, new_const), ~ . * -1)
+
+quantiles_entropy <- 
+    quantile(master$entropy, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_newcomers <- 
+    quantile(master$newcomers, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_gini <- 
+    quantile(master$gini, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_rntafflcl <- 
+    quantile(master$rntafflcl, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_rntaffcty <- 
+    quantile(master$rntaffcty, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_ratio_8020 <- 
+    quantile(master$ratio_8020, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_chng_score <- 
+    quantile(master$chng_score, probs = seq(0, 1, 0.2), na.rm = T)
+
+quantiles_new_const <- 
+    quantile(master$new_const, probs = seq(0, 1, 0.2), na.rm = T)
+
+# quantiles_cnstprop <- 
+#     quantile(master$cnstprop, probs = seq(0, 1, 0.2), na.rm = T)
+# 
+# quantiles_demoprop <- 
+#     quantile(master$demoprop, probs = seq(0, 1, 0.2), na.rm = T)
+# 
+# quantiles_newhhprop <- 
+#     quantile(master$newhhprop, probs = seq(0, 1, 0.2), na.rm = T)
+
+master <- 
+    master %>% 
+    mutate(
+        entropy_reclass = 
+            case_when(
+                entropy < quantiles_entropy[2] ~ "Lowest", 
+                entropy < quantiles_entropy[3] ~ "Low", 
+                entropy < quantiles_entropy[4] ~ "Middle", 
+                entropy < quantiles_entropy[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        entropy_fact = as.factor(entropy_reclass), 
+        newcomers_reclass = 
+            case_when(
+                newcomers < quantiles_newcomers[2] ~ "Lowest", 
+                newcomers < quantiles_newcomers[3] ~ "Low", 
+                newcomers < quantiles_newcomers[4] ~ "Middle", 
+                newcomers < quantiles_newcomers[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        newcomers_fact = as.factor(newcomers_reclass),
+        gini_reclass = 
+            case_when(
+                gini < quantiles_gini[2] ~ "Lowest", 
+                gini < quantiles_gini[3] ~ "Low", 
+                gini < quantiles_gini[4] ~ "Middle", 
+                gini < quantiles_gini[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        gini_fact = as.factor(gini_reclass), 
+        rntafflcl_reclass = 
+            case_when(
+                rntafflcl < quantiles_rntafflcl[2] ~ "Lowest", 
+                rntafflcl < quantiles_rntafflcl[3] ~ "Low", 
+                rntafflcl < quantiles_rntafflcl[4] ~ "Middle", 
+                rntafflcl < quantiles_rntafflcl[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        rntafflcl_fact = as.factor(rntafflcl_reclass),  
+        rntaffcty_reclass = 
+            case_when(
+                rntaffcty < quantiles_rntaffcty[2] ~ "Lowest", 
+                rntaffcty < quantiles_rntaffcty[3] ~ "Low", 
+                rntaffcty < quantiles_rntaffcty[4] ~ "Middle", 
+                rntaffcty < quantiles_rntaffcty[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        rntaffcty_fact = as.factor(rntaffcty_reclass), 
+        ratio_8020_reclass = 
+            case_when(
+                ratio_8020 < quantiles_ratio_8020[2] ~ "Lowest", 
+                ratio_8020 < quantiles_ratio_8020[3] ~ "Low", 
+                ratio_8020 < quantiles_ratio_8020[4] ~ "Middle", 
+                ratio_8020 < quantiles_ratio_8020[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        ratio_8020_fact = as.factor(ratio_8020_reclass), 
+        chng_score_reclass = 
+            case_when(
+                chng_score < quantiles_chng_score[2] ~ "Lowest", 
+                chng_score < quantiles_chng_score[3] ~ "Low", 
+                chng_score < quantiles_chng_score[4] ~ "Middle", 
+                chng_score < quantiles_chng_score[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        chng_score_fact = as.factor(chng_score_reclass),
+        new_const_reclass = 
+            case_when(
+                new_const < quantiles_new_const[2] ~ "Lowest", 
+                new_const < quantiles_new_const[3] ~ "Low", 
+                new_const < quantiles_new_const[4] ~ "Middle", 
+                new_const < quantiles_new_const[5] ~ "High", 
+                TRUE ~ "Highest"
+            ), 
+        new_const_fact = as.factor(new_const_reclass)
+        # cnstprop_reclass = 
+        #     case_when(
+        #         cnstprop < quantiles_cnstprop[2] ~ "Lowest", 
+        #         cnstprop < quantiles_cnstprop[3] ~ "Low", 
+        #         cnstprop < quantiles_cnstprop[4] ~ "Middle", 
+        #         cnstprop < quantiles_cnstprop[5] ~ "High", 
+        #         TRUE ~ "Highest"
+        #     ), 
+        # cnstprop_fact = as.factor(cnstprop_reclass), 
+        # demoprop_reclass = 
+        #     case_when(
+        #         demoprop < quantiles_demoprop[2] ~ "Lowest", 
+        #         demoprop < quantiles_demoprop[3] ~ "Low", 
+        #         demoprop < quantiles_demoprop[4] ~ "Middle", 
+        #         demoprop < quantiles_demoprop[5] ~ "High", 
+        #         TRUE ~ "Highest"
+        #     ), 
+        # demoprop_fact = as.factor(demoprop_reclass), 
+        # newhhprop_reclass = 
+        #     case_when(
+        #         newhhprop < quantiles_newhhprop[2] ~ "Lowest", 
+        #         newhhprop < quantiles_newhhprop[3] ~ "Low", 
+        #         newhhprop < quantiles_newhhprop[4] ~ "Middle", 
+        #         newhhprop < quantiles_newhhprop[5] ~ "High", 
+        #         TRUE ~ "Highest"
+        #     ), 
+        # newhhprop_fact = as.factor(newhhprop_reclass) 
+    ) %>% 
+    mutate_at(vars(contains("fact")), fct_relevel, c("Lowest", "Low", "Middle", "High", "Highest"))
+```
+
+
+```{r}
+vif_cor_test <- function(df, input, tolerance, dep){
+    df <- df %>% select({dep}, all_of(input))
+
+    vars <- 
+        df %>% select(-dep) %>% colnames()
+    
+    fit = lm(
+        data = df, 
+        formula = paste0(dep, " ~ ", paste(vars, collapse = "+"))
+    )
+    
+    summary(fit)
+    
+    vif <- 
+        car::vif(fit) %>% 
+        as_tibble(rownames = "var")
+    
+    vif_drop <- 
+        vif %>% 
+        filter(value != max(vif$value))
+    
+    ifelse(
+        max(vif$value) > tolerance,
+        return(
+            vif_cor_test(
+                df = df, 
+                input = vif_drop %>% pull(var), 
+                tolerance = tolerance, 
+                dep = dep
+            )
+        ),
+        return(vars)
+    )
+}
+
+inputs_vif_list_polr <- 
+    map(
+        outputs_did, 
+        ~ vif_cor_test(master, inputs_polr, 10, .)
+    ) %>% tibble()
+
+inputs_vif_list_did <- 
+    map(
+        outputs_did, 
+        ~ vif_cor_test(master_did, inputs_did, 10, .)
+    ) %>% tibble()
+
+inputs_vif <- 
+    tibble(
+        output_did = outputs_did,
+        output_polr = outputs_polr,
+        inputs_did = inputs_vif_list_did$., 
+        inputs_polr = inputs_vif_list_polr$.
+    )
+```
+
+
+```{r}
+did <- function(dep, inds){
+    model_did <-
+        lm(
+            data =
+                master_did %>% 
+                filter(period != "Post2", gea != 2),
+            formula = 
+                paste0(
+                    dep, 
+                    " ~ ", 
+                    paste(inds, collapse = " + ")
+                )
+        )
+    
+    # model_did_2 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Post1", gea != 2),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_3 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Pre", gea != 2),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_4 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Post2", gea != 1),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_5 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Post1", gea != 1),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_6 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Pre", gea != 1),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_7 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Post2", gea != 0),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_8 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Post1", gea != 0),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    # 
+    # model_did_9 <-
+    #     lm(
+    #         data =
+    #             master_did %>% 
+    #             filter(period != "Pre", gea != 0),
+    #         formula = 
+    #             paste0(
+    #                 dep, 
+    #                 " ~ ", 
+    #                 paste(inds, collapse = " + ")
+    #             )
+    #     )
+    
+    model <- 
+        tribble(
+            ~ var, ~ did, ~ p_value, ~ r_squared, ~std_err, ~model, 
+            dep, model_did$coefficients["did"], summary(model_did)$coefficients["did",4], summary(model_did)$r.squared, summary(model_did)$coefficients["did",2], model_did 
+            # "0 to 1", "0 to 2", dep, model_did_2$coefficients["did"], summary(model_did_2)$coefficients["did",4], summary(model_did_2)$r.squared, summary(model_did_2)$coefficients["did",2], model_did_2, 
+            # "0 to 1", "1 to 2", dep, model_did_3$coefficients["did"], summary(model_did_3)$coefficients["did",4], summary(model_did_3)$r.squared, summary(model_did_3)$coefficients["did",2], model_did_3, 
+            # "0 to 2", "0 to 1", dep, model_did_4$coefficients["did"], summary(model_did_4)$coefficients["did",4], summary(model_did_4)$r.squared, summary(model_did_4)$coefficients["did",2], model_did_4, 
+            # "0 to 2", "0 to 2", dep, model_did_5$coefficients["did"], summary(model_did_5)$coefficients["did",4], summary(model_did_5)$r.squared, summary(model_did_5)$coefficients["did",2], model_did_5, 
+            # "0 to 2", "1 to 2", dep, model_did_6$coefficients["did"], summary(model_did_6)$coefficients["did",4], summary(model_did_6)$r.squared, summary(model_did_6)$coefficients["did",2], model_did_6, 
+            # "1 to 2", "0 to 1", dep, model_did_7$coefficients["did"], summary(model_did_7)$coefficients["did",4], summary(model_did_7)$r.squared, summary(model_did_7)$coefficients["did",2], model_did_7, 
+            # "1 to 2", "0 to 2", dep, model_did_8$coefficients["did"], summary(model_did_8)$coefficients["did",4], summary(model_did_8)$r.squared, summary(model_did_8)$coefficients["did",2], model_did_8, 
+            # "1 to 2", "1 to 2", dep, model_did_9$coefficients["did"], summary(model_did_9)$coefficients["did",4], summary(model_did_9)$r.squared, summary(model_did_9)$coefficients["did",2], model_did_9
+        )
+    
+    return(model)
+}
+
+did_results <-
+    map2_dfr(inputs_vif$output_did, inputs_vif$inputs_did, did) %>% 
+    mutate(significant = ifelse(p_value < 0.01, TRUE, FALSE))
+
+did_results_vals <- 
+    did_results %>% 
+    select(-model)
+
+write_csv(did_results_vals, file = "../data_clean/did_results.csv")
+```
+
+```{r}
+logit <- function(dep, inds){
+    model_ord <- 
+        ordinal::clm(
+            formula = 
+                paste0(
+                    dep, 
+                    " ~ ", 
+                    paste(inds, collapse = " + ")
+                ), 
+            data = master, 
+            na.action = na.omit
+        )
+    
+    print(summary(model_ord))
+    
+    coefs <- 
+        summary(model_ord)$coefficients %>% 
+            as_tibble(rownames = "var") %>% 
+            mutate(
+                p_value = `Pr(>|z|)`, 
+                odds_ratio = exp(Estimate), 
+                output = dep, 
+                std_err = `Std. Error`
+            ) %>% 
+            select(-c(`Std. Error`, `z value`, `Pr(>|z|)`))
+}
+
+polr_results <-
+    map2_dfr(inputs_vif$output_polr, inputs_vif$inputs_polr, logit) %>% 
+    #filter(var %in% c("gea", "did", "time_c")) %>% 
+    filter(var == "gea") %>% 
+    mutate(significant = ifelse(p_value < 0.01, TRUE, FALSE))
+```
+
+

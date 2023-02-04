@@ -1,0 +1,49 @@
+```{r}
+library(tidyverse)
+library(sf)
+```
+
+```{r}
+gea <- read_sf("../data_clean/gea_tract2010_boundaries")
+
+gea %>% 
+    ggplot () + 
+    geom_sf()
+```
+
+```{r}
+gent <- read_csv("../data_download/udp_ny_final_typology_jan_2019.csv")
+
+ct2010 <- read_sf("../data_clean/ct_2010_boundaries")
+```
+
+```{r}
+ct_gent <- 
+    ct2010 %>% 
+    mutate(geoid = as.double(geoid)) %>% 
+    left_join(gent, by = "geoid") %>% 
+    mutate(gent = Type_1.19)
+
+gea_gent <- 
+    gea %>% 
+    mutate(geoid = as.double(geoid)) %>% 
+    left_join(gent, by = "geoid") %>% 
+    mutate(gent = Type_1.19)
+
+ct_gent %>% 
+    st_drop_geometry() %>% 
+    count(gent) %>% 
+    view()
+
+ct_gent %>% 
+    mutate(gent = ifelse(gent == "Missing Data", NA_character_, gent)) %>% 
+    count(gent) %>% 
+    ggplot() + 
+    geom_sf(aes(fill = gent), size = 0.05) + 
+    scale_fill_viridis_d() + 
+    theme_void() + 
+    labs(
+        fill = "Gentrification/Displacement as of 2016"
+    )
+```
+
